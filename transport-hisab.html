@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transport Tracker</title>
+<style>
+  :root {
+    --ink:#1a1a2e;--road:#2d4a7a;--green:#1a7a4a;--green-bg:#e8f7ef;
+    --red:#c0392b;--red-bg:#fdecea;--orange:#c47a00;--orange-bg:#fff8e1;
+    --purple:#6b35b8;--purple-bg:#f3eeff;--blue:#0077cc;--blue-bg:#e8f4ff;
+    --surface:#f7f8fc;--card:#fff;--border:#e0e4ef;--muted:#6b7280;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:sans-serif;background:var(--surface);color:var(--ink);}
+  header{background:linear-gradient(135deg,#2d4a7a,#1a3560);color:#fff;padding:16px;position:sticky;top:0;z-index:99;}
+  header h1{font-size:1.2rem;font-weight:700;}
+  header p{font-size:0.75rem;opacity:0.75;margin-top:2px;}
+  .mnav{display:flex;align-items:center;gap:10px;margin-top:10px;}
+  .mnav button{background:rgba(255,255,255,0.2);border:none;color:#fff;width:30px;height:30px;border-radius:8px;font-size:1.1rem;cursor:pointer;}
+  .mnav span{flex:1;text-align:center;font-weight:700;font-size:0.95rem;}
+  .tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;top:80px;z-index:98;}
+  .tab{flex:1;padding:10px 4px;border:none;background:none;font-size:0.7rem;font-weight:600;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;text-align:center;line-height:1.4;}
+  .tab span{display:block;font-size:1rem;}
+  .tab.on{color:var(--road);border-bottom-color:var(--road);}
+  .pg{display:none;padding:14px;max-width:600px;margin:0 auto;}
+  .pg.on{display:block;}
+  .card{background:var(--card);border-radius:12px;padding:14px;border:1px solid var(--border);margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+  .card h3{font-size:0.85rem;font-weight:700;color:var(--road);margin-bottom:12px;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+  .row.full{grid-template-columns:1fr;}
+  .fg{display:flex;flex-direction:column;gap:4px;}
+  .fg label{font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;}
+  .fg input,.fg textarea{padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;background:var(--surface);color:var(--ink);}
+  .fg textarea{min-height:50px;resize:vertical;}
+  .btn{display:block;width:100%;padding:11px;border:none;border-radius:10px;font-size:0.88rem;font-weight:700;cursor:pointer;margin-top:6px;text-align:center;}
+  .btn.g{background:linear-gradient(90deg,#1a7a4a,#27ae60);color:#fff;}
+  .btn.o{background:linear-gradient(90deg,#c47a00,#f39c12);color:#fff;}
+  .btn.p{background:linear-gradient(90deg,#6b35b8,#9b59b6);color:#fff;}
+  .btn.r{background:linear-gradient(90deg,#c0392b,#e74c3c);color:#fff;}
+  .btn.b{background:linear-gradient(90deg,#0077cc,#2196f3);color:#fff;}
+  .btn.sm{padding:7px 14px;font-size:0.78rem;width:auto;display:inline-block;margin-top:0;}
+  /* summary */
+  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .sc{background:var(--card);border-radius:12px;padding:12px;border-left:4px solid #ccc;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+  .sc.si{border-color:var(--green);}
+  .sc.se{border-color:var(--red);}
+  .sc.sp{border-color:var(--orange);}
+  .sc.sn{border-color:var(--road);grid-column:1/-1;background:linear-gradient(135deg,#eef2ff,#e8f0ff);}
+  .sc .sl{font-size:0.65rem;color:var(--muted);font-weight:700;text-transform:uppercase;}
+  .sc .sv{font-size:1.25rem;font-weight:700;margin-top:3px;}
+  .sc.si .sv{color:var(--green);}
+  .sc.se .sv{color:var(--red);}
+  .sc.sp .sv{color:var(--orange);}
+  .sc.sn .sv{color:var(--road);font-size:1.4rem;}
+  .sc .ss{font-size:0.65rem;color:var(--muted);margin-top:2px;}
+  /* running trip */
+  .rtrip{background:var(--blue-bg);border:2px solid var(--blue);border-radius:12px;padding:14px;margin-bottom:12px;}
+  .rtrip .rh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  .rtrip .rt{font-size:0.95rem;font-weight:700;color:var(--blue);}
+  .rtrip .rs{font-size:0.7rem;color:var(--muted);margin-top:2px;}
+  .rbadge{background:var(--blue);color:#fff;font-size:0.62rem;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+  .rstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;}
+  .rstat{background:#fff;border-radius:8px;padding:8px;text-align:center;}
+  .rstat .rv{font-size:0.95rem;font-weight:700;}
+  .rstat .rl{font-size:0.62rem;color:var(--muted);margin-top:2px;}
+  /* expense rows in running trip */
+  .eitem{display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:0.82rem;}
+  .eitem .en{font-weight:600;}
+  .eitem .ed{font-size:0.65rem;color:var(--muted);}
+  .eitem .ea{font-weight:700;color:var(--red);}
+  .eitem .ex{background:none;border:none;color:#ccc;cursor:pointer;font-size:0.9rem;padding:2px 5px;}
+  .eitem .ex:active{color:var(--red);}
+  .addexp{display:flex;gap:8px;margin-bottom:10px;}
+  .addexp input{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;background:#fff;}
+  .addexp button{background:var(--red);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap;}
+  .ract{display:flex;gap:8px;margin-top:8px;}
+  .ract .btn{flex:1;margin-top:0;}
+  /* entry card */
+  .ec{background:var(--card);border-radius:12px;padding:13px;border:1px solid var(--border);margin-bottom:10px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+  .ec .et{font-size:0.9rem;font-weight:600;}
+  .ec .ed{font-size:0.68rem;color:var(--muted);margin-top:2px;}
+  .ec .etop{display:flex;justify-content:space-between;gap:8px;}
+  .ec .eamt{font-size:1rem;font-weight:700;white-space:nowrap;}
+  .ec .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+  .tg{font-size:0.62rem;padding:2px 7px;border-radius:20px;font-weight:700;}
+  .tg.gi{background:var(--green-bg);color:var(--green);}
+  .tg.gr{background:var(--red-bg);color:var(--red);}
+  .tg.go{background:var(--orange-bg);color:var(--orange);}
+  .tg.gp{background:var(--purple-bg);color:var(--purple);}
+  .delbtn{position:absolute;top:10px;right:10px;background:none;border:none;color:#ddd;font-size:1rem;cursor:pointer;padding:2px 4px;}
+  .delbtn:active{color:var(--red);}
+  .enote{font-size:0.7rem;color:var(--muted);margin-top:6px;}
+  .sh{display:flex;justify-content:space-between;align-items:center;margin:16px 0 10px;}
+  .sh h2{font-size:0.85rem;font-weight:700;}
+  .bdg{font-size:0.62rem;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;}
+  .bdg.bg{background:var(--green-bg);color:var(--green);}
+  .bdg.bo{background:var(--orange-bg);color:var(--orange);}
+  .bdg.bp{background:var(--purple-bg);color:var(--purple);}
+  .ptog{display:flex;align-items:center;gap:8px;background:var(--orange-bg);padding:9px 12px;border-radius:8px;margin-top:10px;}
+  .ptog label{font-size:0.78rem;font-weight:600;color:var(--orange);flex:1;cursor:pointer;}
+  .ptog input{width:17px;height:17px;accent-color:var(--green);cursor:pointer;}
+  .rl{font-size:0.65rem;padding:2px 8px;border-radius:20px;font-weight:700;}
+  .rl.rcv{background:var(--green-bg);color:var(--green);}
+  .rl.rpnd{background:var(--orange-bg);color:var(--orange);}
+  .empty{text-align:center;padding:36px 16px;color:var(--muted);font-size:0.85rem;}
+  .empty .ei{font-size:2.5rem;margin-bottom:8px;}
+  /* breakdown */
+  .brow{display:flex;justify-content:space-between;align-items:center;background:var(--card);border-radius:10px;padding:10px 14px;margin-bottom:8px;border:1px solid var(--border);}
+  .brow .bl{font-size:0.82rem;font-weight:600;}
+  .brow .bv{text-align:right;}
+  .brow .bv1{font-size:0.85rem;font-weight:700;}
+  .brow .bv2{font-size:0.65rem;color:var(--muted);}
+  .bar{height:5px;background:var(--border);border-radius:3px;margin-top:5px;}
+  .barf{height:100%;border-radius:3px;}
+  .sec{margin-bottom:18px;}
+  .sec h2{font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚛 Transport Business Tracker</h1>
+  <p>3 Types of Work — One Place</p>
+  
+  <div style="display:flex;gap:8px;margin-top:10px;">
+    <button onclick="exportData()" style="flex:1;background:rgba(255,255,255,0.18);border:none;color:#fff;padding:8px;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;">📥 Backup Data</button>
+    <button onclick="importData()" style="flex:1;background:rgba(255,255,255,0.18);border:none;color:#fff;padding:8px;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;">📤 Restore Data</button>
+  </div>
+  <div class="mnav">
+    <button onclick="chMon(-1)">‹</button>
+    <span id="monLbl"></span>
+    <button onclick="chMon(1)">›</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab on" onclick="goTab('ov')"><span>📊</span>Summary</button>
+  <button class="tab" onclick="goTab('gd')"><span>🚛</span>Own Vehicle</button>
+  <button class="tab" onclick="goTab('bk')"><span>📦</span>Booking</button>
+  <button class="tab" onclick="goTab('cm')"><span>💼</span>Commission</button>
+</div>
+
+<!-- SUMMARY -->
+<div id="pg-ov" class="pg on">
+  <div class="sgrid" id="scards"></div>
+  <div id="sbreak"></div>
+</div>
+
+<!-- OWN VEHICLE -->
+<div id="pg-gd" class="pg">
+  <div id="running-area"></div>
+  <div class="card">
+    <h3>▶ Start New Trip</h3>
+    <div class="row">
+      <div class="fg"><label>Start Date</label><input type="date" id="g-date"></div>
+      <div class="fg"><label>Vehicle No.</label><input type="text" id="g-veh" placeholder="e.g. UP32AB1234"></div>
+    </div>
+    <div class="row full">
+      <div class="fg"><label>Route</label><input type="text" id="g-route" placeholder="e.g. Indore → Pune → Indore"></div>
+    </div>
+    <div class="row full">
+      <div class="fg"><label>Bhada / Income (₹)</label><input type="number" id="g-inc" placeholder="0"></div>
+    </div>
+    <button class="btn g" onclick="startTrip()">▶ Start Trip</button>
+  </div>
+  <div class="sh"><h2>Completed Trips</h2><span class="bdg bg">This Month</span></div>
+  <div id="list-gd"></div>
+</div>
+
+<!-- BOOKING -->
+<div id="pg-bk" class="pg">
+  <div class="card">
+    <h3>+ Add Booking</h3>
+    <div class="row">
+      <div class="fg"><label>Date</label><input type="date" id="b-date"></div>
+      <div class="fg"><label>Client / Place</label><input type="text" id="b-client" placeholder="Market A"></div>
+    </div>
+    <div class="row">
+      <div class="fg"><label>Payment to Receive (₹)</label><input type="number" id="b-inc" placeholder="0"></div>
+      <div class="fg"><label>Paid to Vendor (₹)</label><input type="number" id="b-exp" placeholder="0"></div>
+    </div>
+    <div class="row">
+      <div class="fg"><label>Vendor Name</label><input type="text" id="b-vend" placeholder="Vendor name"></div>
+      <div class="fg"><label>Due Date</label><input type="date" id="b-due"></div>
+    </div>
+    <div class="ptog">
+      <input type="checkbox" id="b-rcv">
+      <label for="b-rcv">✅ Payment Already Received</label>
+    </div>
+    <div class="row full" style="margin-top:10px">
+      <div class="fg"><label>Note</label><textarea id="b-note" placeholder="Optional..."></textarea></div>
+    </div>
+    <button class="btn o" onclick="addBk()">✓ Save Booking</button>
+  </div>
+  <div class="sh"><h2>This Month's Bookings</h2><span class="bdg bo">Local Booking</span></div>
+  <div id="list-bk"></div>
+</div>
+
+<!-- COMMISSION -->
+<div id="pg-cm" class="pg">
+  <div class="card">
+    <h3>+ Add Commission</h3>
+    <div class="row">
+      <div class="fg"><label>Date</label><input type="date" id="c-date"></div>
+      <div class="fg"><label>Work Description</label><input type="text" id="c-desc" placeholder="Market X to Y"></div>
+    </div>
+    <div class="row">
+      <div class="fg"><label>Total Deal (₹)</label><input type="number" id="c-deal" placeholder="0"></div>
+      <div class="fg"><label>Your Commission (₹)</label><input type="number" id="c-comm" placeholder="0"></div>
+    </div>
+    <div class="row">
+      <div class="fg"><label>From (Market)</label><input type="text" id="c-from" placeholder="Market name"></div>
+      <div class="fg"><label>To (Client)</label><input type="text" id="c-to" placeholder="Client name"></div>
+    </div>
+    <div class="row full">
+      <div class="fg"><label>Note</label><textarea id="c-note" placeholder="Optional..."></textarea></div>
+    </div>
+    <button class="btn p" onclick="addCm()">✓ Save Commission</button>
+  </div>
+  <div class="sh"><h2>This Month's Commission</h2><span class="bdg bp">Commission</span></div>
+  <div id="list-cm"></div>
+</div>
+
+<script>
+var MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var cMon = new Date().getMonth();
+var cYr  = new Date().getFullYear();
+
+function today(){ return new Date().toISOString().split('T')[0]; }
+function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN'); }
+function fdate(s){ if(!s) return ''; var p=s.split('-'); return p[2]+' '+MON[parseInt(p[1])-1]; }
+
+function getKey(){ return 'tb_'+cYr+'_'+cMon; }
+function getD(){ var v=localStorage.getItem(getKey()); try{ return v ? JSON.parse(v) : {g:[],b:[],c:[]}; }catch(e){ return {g:[],b:[],c:[]}; } }
+function setD(d){ localStorage.setItem(getKey(), JSON.stringify(d)); }
+function getR(){ var v=localStorage.getItem('tb_running'); try{ return v ? JSON.parse(v) : []; }catch(e){ return []; } }
+function setR(r){ localStorage.setItem('tb_running', JSON.stringify(r)); }
+
+function chMon(dir){
+  cMon += dir;
+  if(cMon>11){ cMon=0; cYr++; }
+  if(cMon<0){ cMon=11; cYr--; }
+  document.getElementById('monLbl').textContent = MON[cMon]+' '+cYr;
+  renderAll();
+}
+
+function goTab(t){
+  ['ov','gd','bk','cm'].forEach(function(id){
+    document.getElementById('pg-'+id).className = 'pg'+(id===t?' on':'');
+  });
+  document.querySelectorAll('.tab').forEach(function(el,i){
+    el.className = 'tab'+ (['ov','gd','bk','cm'][i]===t?' on':'');
+  });
+  var td = today();
+  if(t==='gd') document.getElementById('g-date').value=td;
+  if(t==='bk') document.getElementById('b-date').value=td;
+  if(t==='cm') document.getElementById('c-date').value=td;
+  renderAll();
+}
+
+// ---- TRIPS ----
+function startTrip(){
+  var route = document.getElementById('g-route').value.trim();
+  if(!route){ alert('Please enter route!'); return; }
+  var r = getR();
+  r.push({
+    id: Date.now(),
+    sdate: document.getElementById('g-date').value || today(),
+    route: route,
+    veh: document.getElementById('g-veh').value,
+    inc: parseFloat(document.getElementById('g-inc').value)||0,
+    exps: []
+  });
+  setR(r);
+  document.getElementById('g-route').value='';
+  document.getElementById('g-veh').value='';
+  document.getElementById('g-inc').value='';
+  renderAll();
+}
+
+function addExp(tid){
+  tid = parseInt(tid);
+  var ni = document.getElementById('en-'+tid);
+  var ai = document.getElementById('ea-'+tid);
+  var nm = (ni.value.trim())||'Expense';
+  var am = parseFloat(ai.value)||0;
+  if(!am){ alert('Enter expense amount!'); return; }
+  var r = getR();
+  for(var i=0;i<r.length;i++){
+    if(parseInt(r[i].id)===tid){
+      r[i].exps.push({id:Date.now(), name:nm, amt:am, dt:today()});
+      break;
+    }
+  }
+  setR(r);
+  ni.value=''; ai.value='';
+  renderAll();
+}
+
+function delExp(tid,eid){
+  tid=parseInt(tid); eid=parseInt(eid);
+  var r=getR();
+  for(var i=0;i<r.length;i++){
+    if(parseInt(r[i].id)===tid){
+      r[i].exps=r[i].exps.filter(function(e){ return parseInt(e.id)!==eid; });
+      break;
+    }
+  }
+  setR(r);
+  renderAll();
+}
+
+function stopTrip(tid){
+  tid = parseInt(tid);
+  if(!confirm('Stop this trip and save as complete?')) return;
+  var r = getR();
+  var trip = null;
+  var tidx = -1;
+  for(var i=0;i<r.length;i++){
+    if(parseInt(r[i].id)===tid){ trip=r[i]; tidx=i; break; }
+  }
+  if(!trip){ alert('Trip not found'); return; }
+
+  // figure out which month to save to
+  var sp = trip.sdate ? trip.sdate.split('-') : [];
+  var sy = sp.length===3 ? parseInt(sp[0]) : cYr;
+  var sm = sp.length===3 ? parseInt(sp[1])-1 : cMon;
+
+  var key = 'tb_'+sy+'_'+sm;
+  var dd;
+  try{ dd = JSON.parse(localStorage.getItem(key)) || {g:[],b:[],c:[]}; }
+  catch(e){ dd = {g:[],b:[],c:[]}; }
+  if(!dd.g) dd.g=[];
+
+  var totalExp = 0;
+  for(var j=0;j<trip.exps.length;j++) totalExp += trip.exps[j].amt;
+
+  dd.g.push({
+    id: trip.id,
+    date: trip.sdate || today(),
+    edate: today(),
+    route: trip.route,
+    veh: trip.veh||'',
+    inc: trip.inc||0,
+    exps: trip.exps||[],
+    texp: totalExp
+  });
+
+  localStorage.setItem(key, JSON.stringify(dd));
+  r.splice(tidx,1);
+  setR(r);
+  renderAll();
+}
+
+// ---- BOOKING ----
+function addBk(){
+  var inc = parseFloat(document.getElementById('b-inc').value)||0;
+  if(!inc){ alert('Enter payment amount!'); return; }
+  var d=getD();
+  d.b.push({
+    id:Date.now(),
+    date: document.getElementById('b-date').value||today(),
+    client: document.getElementById('b-client').value||'Client',
+    inc: inc,
+    exp: parseFloat(document.getElementById('b-exp').value)||0,
+    vend: document.getElementById('b-vend').value,
+    due: document.getElementById('b-due').value,
+    rcv: document.getElementById('b-rcv').checked,
+    note: document.getElementById('b-note').value
+  });
+  setD(d);
+  ['b-inc','b-exp','b-client','b-vend','b-due','b-note'].forEach(function(x){ document.getElementById(x).value=''; });
+  document.getElementById('b-rcv').checked=false;
+  renderAll();
+}
+
+function togRcv(id){
+  id=parseInt(id);
+  var d=getD();
+  for(var i=0;i<d.b.length;i++){
+    if(parseInt(d.b[i].id)===id){ d.b[i].rcv=!d.b[i].rcv; break; }
+  }
+  setD(d); renderAll();
+}
+
+// ---- COMMISSION ----
+function addCm(){
+  var cm = parseFloat(document.getElementById('c-comm').value)||0;
+  if(!cm){ alert('Enter commission amount!'); return; }
+  var d=getD();
+  d.c.push({
+    id:Date.now(),
+    date: document.getElementById('c-date').value||today(),
+    desc: document.getElementById('c-desc').value||'Work',
+    deal: parseFloat(document.getElementById('c-deal').value)||0,
+    comm: cm,
+    from: document.getElementById('c-from').value,
+    to: document.getElementById('c-to').value,
+    note: document.getElementById('c-note').value
+  });
+  setD(d);
+  ['c-deal','c-comm','c-desc','c-from','c-to','c-note'].forEach(function(x){ document.getElementById(x).value=''; });
+  renderAll();
+}
+
+// ---- DELETE ----
+function delG(id){
+  id=parseInt(id);
+  if(!confirm('Delete this trip?')) return;
+  var d=getD();
+  d.g=d.g.filter(function(e){ return parseInt(e.id)!==id; });
+  setD(d); renderAll();
+}
+function delB(id){
+  id=parseInt(id);
+  if(!confirm('Delete this entry?')) return;
+  var d=getD();
+  d.b=d.b.filter(function(e){ return parseInt(e.id)!==id; });
+  setD(d); renderAll();
+}
+function delC(id){
+  id=parseInt(id);
+  if(!confirm('Delete this entry?')) return;
+  var d=getD();
+  d.c=d.c.filter(function(e){ return parseInt(e.id)!==id; });
+  setD(d); renderAll();
+}
+
+// ---- RENDER ----
+function renderAll(){
+  var d=getD();
+  var r=getR();
+
+  var gInc=0,gExp=0;
+  for(var i=0;i<d.g.length;i++){ gInc+=d.g[i].inc||0; gExp+=d.g[i].texp||0; }
+  var bTot=0,bRcv=0,bExp=0;
+  for(var i=0;i<d.b.length;i++){ bTot+=d.b[i].inc||0; if(d.b[i].rcv) bRcv+=d.b[i].inc||0; bExp+=d.b[i].exp||0; }
+  var bPnd=bTot-bRcv;
+  var cTot=0;
+  for(var i=0;i<d.c.length;i++) cTot+=d.c[i].comm||0;
+  var totInc=gInc+bRcv+cTot;
+  var totExp=gExp+bExp;
+  var net=totInc-totExp;
+
+  document.getElementById('scards').innerHTML=
+    '<div class="sc si"><div class="sl">Total Income</div><div class="sv">'+fmt(totInc)+'</div><div class="ss">Received</div></div>'+
+    '<div class="sc se"><div class="sl">Total Expense</div><div class="sv">'+fmt(totExp)+'</div><div class="ss">Paid out</div></div>'+
+    '<div class="sc sp"><div class="sl">Pending</div><div class="sv">'+fmt(bPnd)+'</div><div class="ss">Booking due</div></div>'+
+    '<div class="sc sn"><div class="sl">Net Profit</div><div class="sv" style="color:'+(net>=0?'var(--green)':'var(--red)')+'">'+fmt(net)+'</div>'+
+    '<div class="ss">'+(net>=0?'👍 Profit':'⚠️ Loss')+' — After pending: '+fmt(net+bPnd)+'</div></div>';
+
+  var mx=Math.max(gInc,bTot,cTot,1);
+  document.getElementById('sbreak').innerHTML=
+    '<div class="sec"><h2>Breakdown by Type</h2>'+
+    '<div class="brow"><div><div class="bl">🚛 Own Vehicle</div><div style="font-size:0.68rem;color:var(--muted)">'+(d.g.length)+' trips • Exp: '+fmt(gExp)+'</div><div class="bar"><div class="barf" style="width:'+Math.min(100,gInc/mx*100)+'%;background:var(--green)"></div></div></div><div class="bv"><div class="bv1" style="color:var(--green)">'+fmt(gInc)+'</div><div class="bv2">Net: '+fmt(gInc-gExp)+'</div></div></div>'+
+    '<div class="brow"><div><div class="bl">📦 Local Booking</div><div style="font-size:0.68rem;color:var(--muted)">'+(d.b.length)+' bookings • Vendor: '+fmt(bExp)+'</div><div class="bar"><div class="barf" style="width:'+Math.min(100,bRcv/mx*100)+'%;background:var(--orange)"></div></div></div><div class="bv"><div class="bv1" style="color:var(--orange)">'+fmt(bRcv)+' rcvd</div><div class="bv2">Pending: '+fmt(bPnd)+'</div></div></div>'+
+    '<div class="brow"><div><div class="bl">💼 Commission</div><div style="font-size:0.68rem;color:var(--muted)">'+(d.c.length)+' deals</div><div class="bar"><div class="barf" style="width:'+Math.min(100,cTot/mx*100)+'%;background:var(--purple)"></div></div></div><div class="bv"><div class="bv1" style="color:var(--purple)">'+fmt(cTot)+'</div><div class="bv2">Commission only</div></div></div></div>';
+
+  // Running trips
+  var ra=document.getElementById('running-area');
+  if(r.length===0){ ra.innerHTML=''; }
+  else {
+    var html='';
+    for(var i=0;i<r.length;i++){
+      var t=r[i];
+      var texp=0; for(var j=0;j<t.exps.length;j++) texp+=t.exps[j].amt;
+      var tn=t.inc-texp;
+      var ehtml='';
+      for(var j=0;j<t.exps.length;j++){
+        var ex=t.exps[j];
+        ehtml+='<div class="eitem"><div><div class="en">'+ex.name+'</div><div class="ed">'+fdate(ex.dt)+'</div></div>'+
+          '<div style="display:flex;align-items:center;gap:8px"><div class="ea">-'+fmt(ex.amt)+'</div>'+
+          '<button class="ex" onclick="delExp('+t.id+','+ex.id+')">✕</button></div></div>';
+      }
+      html+='<div class="rtrip">'+
+        '<div class="rh"><div><div class="rt">🚛 '+t.route+'</div><div class="rs">Started '+fdate(t.sdate)+(t.veh?' • '+t.veh:'')+'</div></div>'+
+        '<span class="rbadge">● RUNNING</span></div>'+
+        '<div class="rstats">'+
+          '<div class="rstat"><div class="rv" style="color:var(--green)">'+fmt(t.inc)+'</div><div class="rl">Bhada</div></div>'+
+          '<div class="rstat"><div class="rv" style="color:var(--red)">'+fmt(texp)+'</div><div class="rl">Expense</div></div>'+
+          '<div class="rstat"><div class="rv" style="color:var(--blue)">'+fmt(tn)+'</div><div class="rl">Net</div></div>'+
+        '</div>'+
+        (ehtml?'<div style="margin-bottom:8px">'+ehtml+'</div>':'')+
+        '<div class="addexp">'+
+          '<input type="text" id="en-'+t.id+'" placeholder="Diesel / Toll / Repair...">'+
+          '<input type="number" id="ea-'+t.id+'" placeholder="₹" style="max-width:90px">'+
+          '<button onclick="addExp('+t.id+')">+ Add</button>'+
+        '</div>'+
+        '<div class="ract">'+
+          '<button class="btn b sm" onclick="stopTrip('+t.id+')">⏹ Stop Trip</button>'+
+        '</div>'+
+      '</div>';
+    }
+    ra.innerHTML=html;
+  }
+
+  // Completed trips
+  var gs=[].concat(d.g).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  var ghtml='';
+  if(gs.length===0) ghtml='<div class="empty"><div class="ei">✅</div>No completed trips this month</div>';
+  else for(var i=0;i<gs.length;i++){
+    var e=gs[i];
+    var etags='';
+    for(var j=0;j<(e.exps||[]).length;j++) etags+='<span class="tg gr">'+e.exps[j].name+': '+fmt(e.exps[j].amt)+'</span>';
+    ghtml+='<div class="ec">'+
+      '<button class="delbtn" onclick="delG('+e.id+')">✕</button>'+
+      '<div class="etop"><div><div class="et">'+e.route+'</div><div class="ed">'+fdate(e.date)+(e.edate&&e.edate!==e.date?' → '+fdate(e.edate):'')+' '+(e.veh||'')+'</div></div>'+
+      '<div style="text-align:right">'+(e.inc?'<div class="eamt" style="color:var(--green)">+'+fmt(e.inc)+'</div>':'')+(e.texp?'<div class="eamt" style="color:var(--red)">-'+fmt(e.texp)+'</div>':'')+'</div></div>'+
+      '<div class="tags"><span class="tg gi">Income: '+fmt(e.inc)+'</span>'+etags+'<span class="tg '+(e.inc-e.texp>=0?'gi':'gr')+'">Net: '+fmt(e.inc-e.texp)+'</span></div>'+
+    '</div>';
+  }
+  document.getElementById('list-gd').innerHTML=ghtml;
+
+  // Bookings
+  var bs=[].concat(d.b).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  var bhtml='';
+  if(bs.length===0) bhtml='<div class="empty"><div class="ei">📦</div>No bookings this month</div>';
+  else for(var i=0;i<bs.length;i++){
+    var e=bs[i];
+    bhtml+='<div class="ec">'+
+      '<button class="delbtn" onclick="delB('+e.id+')">✕</button>'+
+      '<div class="etop"><div><div class="et">'+e.client+'</div><div class="ed">'+fdate(e.date)+(e.vend?' • '+e.vend:'')+'</div></div>'+
+      '<div style="text-align:right"><div class="eamt" style="color:'+(e.rcv?'var(--green)':'var(--orange)')+'">'+fmt(e.inc)+'</div>'+(e.exp?'<div class="eamt" style="color:var(--red)">-'+fmt(e.exp)+'</div>':'')+'</div></div>'+
+      '<div class="tags">'+
+        '<span class="rl '+(e.rcv?'rcv':'rpnd')+'" onclick="togRcv('+e.id+')" style="cursor:pointer">'+(e.rcv?'✅ Received':'⏳ Pending — tap when received')+'</span>'+
+        (e.due?'<span class="tg go">Due: '+fdate(e.due)+'</span>':'')+
+        (e.exp?'<span class="tg gr">Vendor: '+fmt(e.exp)+'</span>':'')+
+      '</div>'+
+      (e.note?'<div class="enote">📝 '+e.note+'</div>':'')+
+    '</div>';
+  }
+  document.getElementById('list-bk').innerHTML=bhtml;
+
+  // Commission
+  var cs=[].concat(d.c).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  var chtml='';
+  if(cs.length===0) chtml='<div class="empty"><div class="ei">💼</div>No commission entries this month</div>';
+  else for(var i=0;i<cs.length;i++){
+    var e=cs[i];
+    chtml+='<div class="ec">'+
+      '<button class="delbtn" onclick="delC('+e.id+')">✕</button>'+
+      '<div class="etop"><div><div class="et">'+e.desc+'</div><div class="ed">'+fdate(e.date)+(e.from?' • '+e.from+' → '+(e.to||'?'):'')+'</div></div>'+
+      '<div style="text-align:right"><div class="eamt" style="color:var(--purple)">+'+fmt(e.comm)+'</div>'+(e.deal?'<div style="font-size:0.68rem;color:var(--muted)">Deal: '+fmt(e.deal)+'</div>':'')+'</div></div>'+
+      '<div class="tags"><span class="tg gp">Commission: '+fmt(e.comm)+'</span>'+(e.deal?'<span class="tg" style="background:#f3f4f6;color:#374151">Deal: '+fmt(e.deal)+'</span>':'')+'</div>'+
+      (e.note?'<div class="enote">📝 '+e.note+'</div>':'')+
+    '</div>';
+  }
+  document.getElementById('list-cm').innerHTML=chtml;
+}
+
+document.getElementById('monLbl').textContent = MON[cMon]+' '+cYr;
+document.getElementById('g-date').value = today();
+document.getElementById('b-date').value = today();
+document.getElementById('c-date').value = today();
+renderAll();
+
+function exportData(){
+  var allData = {};
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(k.indexOf('tb_')===0) allData[k]=localStorage.getItem(k);
+  }
+  var json = JSON.stringify(allData, null, 2);
+  var blob = new Blob([json], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'transport-backup-'+today()+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(){
+  var inp = document.createElement('input');
+  inp.type='file'; inp.accept='.json';
+  inp.onchange = function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        var data = JSON.parse(ev.target.result);
+        var count=0;
+        for(var k in data){
+          if(k.indexOf('tb_')===0){ localStorage.setItem(k, data[k]); count++; }
+        }
+        alert('Data imported! '+count+' months restored.');
+        renderAll();
+      } catch(err){ alert('Invalid backup file!'); }
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+}
+</script>
+</body>
+</html>
