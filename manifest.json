@@ -1,6 +1,7 @@
+
 {
-  "name": "Transport Tracker",
-  "short_name": "Transport",
+  "name": "Taufiq Transport Tracker",
+  "short_name": "Taufiq",
   "description": "Transport Business Tracker",
   "start_url": "./transport-hisab.html",
   "display": "standalone",
@@ -34,4 +35,3 @@
     }
   ]
 }
-
