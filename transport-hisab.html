@@ -93,8 +93,23 @@
   .tg.gr{background:var(--red-bg);color:var(--red);}
   .tg.go{background:var(--orange-bg);color:var(--orange);}
   .tg.gp{background:var(--purple-bg);color:var(--purple);}
-  .delbtn{position:absolute;top:10px;right:10px;background:none;border:none;color:#ddd;font-size:1rem;cursor:pointer;padding:2px 4px;}
-  .delbtn:active{color:var(--red);}
+  .delbtn{position:absolute;top:10px;right:10px;background:var(--red-bg);border:1.5px solid var(--red);color:var(--red);font-size:0.85rem;cursor:pointer;padding:5px 9px;border-radius:8px;font-weight:700;}
+  .delbtn:active{background:var(--red);color:#fff;}
+  .editbtn{position:absolute;top:10px;right:52px;background:var(--blue-bg);border:1.5px solid var(--blue);color:var(--blue);font-size:0.85rem;cursor:pointer;padding:5px 9px;border-radius:8px;font-weight:700;}
+  .editbtn:active{background:var(--blue);color:#fff;}
+  /* modal */
+  .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-end;justify-content:center;}
+  .modal-ov.show{display:flex;}
+  .modal-box{background:#fff;border-radius:16px 16px 0 0;padding:16px;width:100%;max-width:600px;max-height:85vh;overflow-y:auto;}
+  .modal-box h3{font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--road)}
+  .btn.gray{background:#eee;color:#333;}
+  .exp-edit-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+  .exp-edit-row input{padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;background:var(--surface);}
+  .exp-edit-row input[type=text]{flex:1.2;}
+  .exp-edit-row input[type=number]{flex:1;}
+  .exp-edit-row button{background:var(--red-bg);color:var(--red);border:none;border-radius:8px;width:32px;height:36px;cursor:pointer;flex-shrink:0;}
+  .add-exp-edit{display:flex;align-items:center;gap:6px;background:var(--red-bg);border:1.5px dashed var(--red);color:var(--red);border-radius:8px;padding:8px 12px;font-size:0.8rem;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;}
+
   .enote{font-size:0.7rem;color:var(--muted);margin-top:6px;}
   .sh{display:flex;justify-content:space-between;align-items:center;margin:16px 0 10px;}
   .sh h2{font-size:0.85rem;font-weight:700;}
@@ -143,6 +158,7 @@
   <button class="tab" onclick="goTab('gd')"><span>🚛</span>Own Vehicle</button>
   <button class="tab" onclick="goTab('bk')"><span>📦</span>Booking</button>
   <button class="tab" onclick="goTab('cm')"><span>💼</span>Commission</button>
+  <button class="tab" onclick="goTab('rp')"><span>📄</span>Reports</button>
 </div>
 
 <!-- SUMMARY -->
@@ -226,6 +242,28 @@
   <div id="list-cm"></div>
 </div>
 
+<!-- REPORTS -->
+<div id="pg-rp" class="pg">
+  <div class="card">
+    <h3>📄 Download Reports (PDF)</h3>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:14px">Reports for <b id="rp-month"></b>. Tap a button below — in the print window choose <b>"Save as PDF"</b> as the printer/destination.</p>
+    <button class="btn g" onclick="genReport('g')">🚛 Own Vehicle Report</button>
+    <button class="btn o" onclick="genReport('b')">📦 Local Booking Report</button>
+    <button class="btn p" onclick="genReport('c')">💼 Commission Report</button>
+    <button class="btn b" onclick="genReport('all')">📋 Full Combined Report</button>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-ov" id="editModal">
+  <div class="modal-box">
+    <h3>✏️ Edit Entry</h3>
+    <div id="editFields"></div>
+    <button class="btn g" onclick="saveEdit()">✓ Save Changes</button>
+    <button class="btn gray" onclick="closeEdit()">Cancel</button>
+  </div>
+</div>
+
 <script>
 var MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var cMon = new Date().getMonth();
@@ -250,16 +288,17 @@ function chMon(dir){
 }
 
 function goTab(t){
-  ['ov','gd','bk','cm'].forEach(function(id){
+  ['ov','gd','bk','cm','rp'].forEach(function(id){
     document.getElementById('pg-'+id).className = 'pg'+(id===t?' on':'');
   });
   document.querySelectorAll('.tab').forEach(function(el,i){
-    el.className = 'tab'+ (['ov','gd','bk','cm'][i]===t?' on':'');
+    el.className = 'tab'+ (['ov','gd','bk','cm','rp'][i]===t?' on':'');
   });
   var td = today();
   if(t==='gd') document.getElementById('g-date').value=td;
   if(t==='bk') document.getElementById('b-date').value=td;
   if(t==='cm') document.getElementById('c-date').value=td;
+  if(t==='rp') document.getElementById('rp-month').textContent = MON[cMon]+' '+cYr;
   renderAll();
 }
 
@@ -509,6 +548,7 @@ function renderAll(){
     for(var j=0;j<(e.exps||[]).length;j++) etags+='<span class="tg gr">'+e.exps[j].name+': '+fmt(e.exps[j].amt)+'</span>';
     ghtml+='<div class="ec">'+
       '<button class="delbtn" onclick="delG('+e.id+')">✕</button>'+
+      '<button class="editbtn" onclick="openEdit(\'g\','+e.id+')">✏️</button>'+
       '<div class="etop"><div><div class="et">'+e.route+'</div><div class="ed">'+fdate(e.date)+(e.edate&&e.edate!==e.date?' → '+fdate(e.edate):'')+' '+(e.veh||'')+'</div></div>'+
       '<div style="text-align:right">'+(e.inc?'<div class="eamt" style="color:var(--green)">+'+fmt(e.inc)+'</div>':'')+(e.texp?'<div class="eamt" style="color:var(--red)">-'+fmt(e.texp)+'</div>':'')+'</div></div>'+
       '<div class="tags"><span class="tg gi">Income: '+fmt(e.inc)+'</span>'+etags+'<span class="tg '+(e.inc-e.texp>=0?'gi':'gr')+'">Net: '+fmt(e.inc-e.texp)+'</span></div>'+
@@ -524,6 +564,7 @@ function renderAll(){
     var e=bs[i];
     bhtml+='<div class="ec">'+
       '<button class="delbtn" onclick="delB('+e.id+')">✕</button>'+
+      '<button class="editbtn" onclick="openEdit(\'b\','+e.id+')">✏️</button>'+
       '<div class="etop"><div><div class="et">'+e.client+'</div><div class="ed">'+fdate(e.date)+(e.vend?' • '+e.vend:'')+'</div></div>'+
       '<div style="text-align:right"><div class="eamt" style="color:'+(e.rcv?'var(--green)':'var(--orange)')+'">'+fmt(e.inc)+'</div>'+(e.exp?'<div class="eamt" style="color:var(--red)">-'+fmt(e.exp)+'</div>':'')+'</div></div>'+
       '<div class="tags">'+
@@ -544,6 +585,7 @@ function renderAll(){
     var e=cs[i];
     chtml+='<div class="ec">'+
       '<button class="delbtn" onclick="delC('+e.id+')">✕</button>'+
+      '<button class="editbtn" onclick="openEdit(\'c\','+e.id+')">✏️</button>'+
       '<div class="etop"><div><div class="et">'+e.desc+'</div><div class="ed">'+fdate(e.date)+(e.from?' • '+e.from+' → '+(e.to||'?'):'')+'</div></div>'+
       '<div style="text-align:right"><div class="eamt" style="color:var(--purple)">+'+fmt(e.comm)+'</div>'+(e.deal?'<div style="font-size:0.68rem;color:var(--muted)">Deal: '+fmt(e.deal)+'</div>':'')+'</div></div>'+
       '<div class="tags"><span class="tg gp">Commission: '+fmt(e.comm)+'</span>'+(e.deal?'<span class="tg" style="background:#f3f4f6;color:#374151">Deal: '+fmt(e.deal)+'</span>':'')+'</div>'+
@@ -596,6 +638,209 @@ function importData(){
     reader.readAsText(file);
   };
   inp.click();
+}
+
+// ---- EDIT MODAL ----
+var editType=null, editId=null, editExps=[];
+
+function esc(s){ return (s===undefined||s===null) ? '' : String(s).replace(/"/g,'&quot;'); }
+
+function openEdit(type,id){
+  editType=type; editId=parseInt(id);
+  var d=getD();
+  var item;
+  var html='';
+
+  if(type==='g'){
+    item=d.g.find(function(e){return parseInt(e.id)===editId;});
+    if(!item) return;
+    editExps=(item.exps||[]).map(function(x){return {name:x.name, amt:x.amt};});
+    html += '<div class="row"><div class="fg"><label>Route</label><input type="text" id="ed-route" value="'+esc(item.route)+'"></div><div class="fg"><label>Vehicle</label><input type="text" id="ed-veh" value="'+esc(item.veh)+'"></div></div>';
+    html += '<div class="row full"><div class="fg"><label>Income / Bhada (₹)</label><input type="number" id="ed-inc" value="'+(item.inc||0)+'"></div></div>';
+    html += '<div style="font-size:0.72rem;font-weight:700;color:var(--red);text-transform:uppercase;margin-bottom:6px">Expenses</div>';
+    html += '<div id="editExpList"></div>';
+    html += '<button class="add-exp-edit" onclick="addEditExpRow()">+ Add Expense</button>';
+  }
+  else if(type==='b'){
+    item=d.b.find(function(e){return parseInt(e.id)===editId;});
+    if(!item) return;
+    html += '<div class="row"><div class="fg"><label>Client / Place</label><input type="text" id="ed-client" value="'+esc(item.client)+'"></div><div class="fg"><label>Vendor Name</label><input type="text" id="ed-vend" value="'+esc(item.vend)+'"></div></div>';
+    html += '<div class="row"><div class="fg"><label>Payment to Receive (₹)</label><input type="number" id="ed-inc" value="'+(item.inc||0)+'"></div><div class="fg"><label>Paid to Vendor (₹)</label><input type="number" id="ed-exp" value="'+(item.exp||0)+'"></div></div>';
+    html += '<div class="row full"><div class="fg"><label>Due Date</label><input type="date" id="ed-due" value="'+esc(item.due)+'"></div></div>';
+    html += '<div class="ptog"><input type="checkbox" id="ed-rcv" '+(item.rcv?'checked':'')+'><label for="ed-rcv">✅ Payment Received</label></div>';
+    html += '<div class="row full" style="margin-top:10px"><div class="fg"><label>Note</label><textarea id="ed-note">'+esc(item.note)+'</textarea></div></div>';
+  }
+  else {
+    item=d.c.find(function(e){return parseInt(e.id)===editId;});
+    if(!item) return;
+    html += '<div class="row full"><div class="fg"><label>Work Description</label><input type="text" id="ed-desc" value="'+esc(item.desc)+'"></div></div>';
+    html += '<div class="row"><div class="fg"><label>Total Deal (₹)</label><input type="number" id="ed-deal" value="'+(item.deal||0)+'"></div><div class="fg"><label>Your Commission (₹)</label><input type="number" id="ed-comm" value="'+(item.comm||0)+'"></div></div>';
+    html += '<div class="row"><div class="fg"><label>From (Market)</label><input type="text" id="ed-from" value="'+esc(item.from)+'"></div><div class="fg"><label>To (Client)</label><input type="text" id="ed-to" value="'+esc(item.to)+'"></div></div>';
+    html += '<div class="row full"><div class="fg"><label>Note</label><textarea id="ed-note">'+esc(item.note)+'</textarea></div></div>';
+  }
+
+  document.getElementById('editFields').innerHTML = html;
+  if(type==='g') renderEditExps();
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeEdit(){
+  document.getElementById('editModal').classList.remove('show');
+  editType=null; editId=null; editExps=[];
+}
+
+function renderEditExps(){
+  var html='';
+  for(var i=0;i<editExps.length;i++){
+    html += '<div class="exp-edit-row">'+
+      '<input type="text" value="'+esc(editExps[i].name)+'" onchange="editExps['+i+'].name=this.value" placeholder="Diesel / Toll / Repair">'+
+      '<input type="number" value="'+editExps[i].amt+'" onchange="editExps['+i+'].amt=parseFloat(this.value)||0" placeholder="₹ 0">'+
+      '<button onclick="removeEditExp('+i+')">✕</button>'+
+    '</div>';
+  }
+  document.getElementById('editExpList').innerHTML=html;
+}
+function addEditExpRow(){
+  editExps.push({name:'', amt:0});
+  renderEditExps();
+}
+function removeEditExp(i){
+  editExps.splice(i,1);
+  renderEditExps();
+}
+
+function saveEdit(){
+  var d=getD();
+  if(editType==='g'){
+    var item=d.g.find(function(e){return parseInt(e.id)===editId;});
+    if(item){
+      item.route=document.getElementById('ed-route').value||item.route;
+      item.veh=document.getElementById('ed-veh').value;
+      item.inc=parseFloat(document.getElementById('ed-inc').value)||0;
+      var cleanExps=[];
+      for(var i=0;i<editExps.length;i++){
+        if(editExps[i].amt>0){
+          cleanExps.push({id:Date.now()+i, name:editExps[i].name||'Expense', amt:editExps[i].amt, dt:item.date||today()});
+        }
+      }
+      item.exps=cleanExps;
+      item.texp=cleanExps.reduce(function(s,x){return s+x.amt;},0);
+    }
+  } else if(editType==='b'){
+    var item=d.b.find(function(e){return parseInt(e.id)===editId;});
+    if(item){
+      item.client=document.getElementById('ed-client').value||item.client;
+      item.vend=document.getElementById('ed-vend').value;
+      item.inc=parseFloat(document.getElementById('ed-inc').value)||0;
+      item.exp=parseFloat(document.getElementById('ed-exp').value)||0;
+      item.due=document.getElementById('ed-due').value;
+      item.rcv=document.getElementById('ed-rcv').checked;
+      item.note=document.getElementById('ed-note').value;
+    }
+  } else if(editType==='c'){
+    var item=d.c.find(function(e){return parseInt(e.id)===editId;});
+    if(item){
+      item.desc=document.getElementById('ed-desc').value||item.desc;
+      item.deal=parseFloat(document.getElementById('ed-deal').value)||0;
+      item.comm=parseFloat(document.getElementById('ed-comm').value)||0;
+      item.from=document.getElementById('ed-from').value;
+      item.to=document.getElementById('ed-to').value;
+      item.note=document.getElementById('ed-note').value;
+    }
+  }
+  setD(d);
+  closeEdit();
+  renderAll();
+}
+
+// ---- PDF REPORTS ----
+function genReport(type){
+  var d=getD();
+  var monName=MON[cMon]+' '+cYr;
+  var html='<html><head><title>Transport Report - '+monName+'</title><style>'+
+    'body{font-family:Arial,sans-serif;padding:20px;color:#1a1a2e}'+
+    'h1{font-size:1.3rem;margin-bottom:2px}'+
+    'h2{font-size:0.95rem;color:#6b7280;margin-bottom:18px;font-weight:normal}'+
+    'h3{font-size:1rem;margin:18px 0 8px;color:#2d4a7a}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:0.82rem}'+
+    'th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}'+
+    'th{background:#2d4a7a;color:#fff}'+
+    'tr.tot{font-weight:700;background:#eef2ff}'+
+    '.foot{font-size:0.7rem;color:#999;margin-top:20px}'+
+    '</style></head><body>';
+
+  html += '<h1>🚛 Transport Business Report</h1><h2>'+monName+'</h2>';
+
+  if(type==='g' || type==='all'){
+    html += '<h3>Own Vehicle Trips</h3>';
+    if(d.g.length===0) html += '<p>No trips this month.</p>';
+    else {
+      html += '<table><tr><th>Date</th><th>Route</th><th>Vehicle</th><th>Income</th><th>Expenses</th><th>Net</th></tr>';
+      var gInc=0,gExp=0;
+      for(var i=0;i<d.g.length;i++){
+        var e=d.g[i];
+        var expStr='';
+        for(var j=0;j<(e.exps||[]).length;j++) expStr += e.exps[j].name+': '+fmt(e.exps[j].amt)+(j<e.exps.length-1?', ':'');
+        gInc+=e.inc||0; gExp+=e.texp||0;
+        html += '<tr><td>'+fdate(e.date)+'</td><td>'+e.route+'</td><td>'+(e.veh||'-')+'</td><td>'+fmt(e.inc)+'</td><td>'+(expStr||'-')+'</td><td>'+fmt((e.inc||0)-(e.texp||0))+'</td></tr>';
+      }
+      html += '<tr class="tot"><td colspan="3">TOTAL</td><td>'+fmt(gInc)+'</td><td>'+fmt(gExp)+'</td><td>'+fmt(gInc-gExp)+'</td></tr></table>';
+    }
+  }
+
+  if(type==='b' || type==='all'){
+    html += '<h3>Local Bookings</h3>';
+    if(d.b.length===0) html += '<p>No bookings this month.</p>';
+    else {
+      html += '<table><tr><th>Date</th><th>Client</th><th>Vendor</th><th>Income</th><th>Paid to Vendor</th><th>Status</th></tr>';
+      var bInc=0,bExp=0,bRcv=0;
+      for(var i=0;i<d.b.length;i++){
+        var e=d.b[i];
+        bInc+=e.inc||0; bExp+=e.exp||0; if(e.rcv)bRcv+=e.inc||0;
+        html += '<tr><td>'+fdate(e.date)+'</td><td>'+e.client+'</td><td>'+(e.vend||'-')+'</td><td>'+fmt(e.inc)+'</td><td>'+fmt(e.exp)+'</td><td>'+(e.rcv?'Received':'Pending')+'</td></tr>';
+      }
+      html += '<tr class="tot"><td colspan="3">TOTAL</td><td>'+fmt(bInc)+' (Received: '+fmt(bRcv)+')</td><td>'+fmt(bExp)+'</td><td></td></tr></table>';
+    }
+  }
+
+  if(type==='c' || type==='all'){
+    html += '<h3>Commission</h3>';
+    if(d.c.length===0) html += '<p>No commission entries this month.</p>';
+    else {
+      html += '<table><tr><th>Date</th><th>Description</th><th>From</th><th>To</th><th>Deal Amount</th><th>Commission</th></tr>';
+      var cTot=0;
+      for(var i=0;i<d.c.length;i++){
+        var e=d.c[i];
+        cTot+=e.comm||0;
+        html += '<tr><td>'+fdate(e.date)+'</td><td>'+e.desc+'</td><td>'+(e.from||'-')+'</td><td>'+(e.to||'-')+'</td><td>'+fmt(e.deal)+'</td><td>'+fmt(e.comm)+'</td></tr>';
+      }
+      html += '<tr class="tot"><td colspan="5">TOTAL COMMISSION</td><td>'+fmt(cTot)+'</td></tr></table>';
+    }
+  }
+
+  if(type==='all'){
+    var gInc2=0,gExp2=0,bRcv2=0,bExp2=0,bPnd2=0,cTot2=0;
+    for(var i=0;i<d.g.length;i++){ gInc2+=d.g[i].inc||0; gExp2+=d.g[i].texp||0; }
+    for(var i=0;i<d.b.length;i++){ if(d.b[i].rcv) bRcv2+=d.b[i].inc||0; else bPnd2+=d.b[i].inc||0; bExp2+=d.b[i].exp||0; }
+    for(var i=0;i<d.c.length;i++) cTot2+=d.c[i].comm||0;
+    var totInc2=gInc2+bRcv2+cTot2;
+    var totExp2=gExp2+bExp2;
+    html += '<h3>Overall Summary</h3><table>'+
+      '<tr><th>Total Income</th><td>'+fmt(totInc2)+'</td></tr>'+
+      '<tr><th>Total Expense</th><td>'+fmt(totExp2)+'</td></tr>'+
+      '<tr><th>Pending to Receive</th><td>'+fmt(bPnd2)+'</td></tr>'+
+      '<tr class="tot"><th>Net Profit</th><td>'+fmt(totInc2-totExp2)+'</td></tr>'+
+      '</table>';
+  }
+
+  html += '<div class="foot">Generated on '+today()+' • Transport Business Tracker</div>';
+  html += '</body></html>';
+
+  var w=window.open('','_blank');
+  if(!w){ alert('Please allow popups to generate the report!'); return; }
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function(){ w.focus(); w.print(); }, 400);
 }
 </script>
 </body>
